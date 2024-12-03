@@ -34,7 +34,7 @@ func preRun(cmd *cobra.Command, args []string) {
 }
 
 func rootMain(cmd *cobra.Command, args []string) {
-	fmt.Println("Hello AOC!")
+	_ = cmd.Help()
 }
 
 func MaybeDie(err error) {
