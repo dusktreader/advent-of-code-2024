@@ -2,9 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"io"
 	"log/slog"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -45,28 +43,10 @@ func d1Main(cmd *cobra.Command, args []string){
 	_ = cmd.Help()
 }
 
-func getInput(cmd *cobra.Command, args []string) (left []int, right []int, err error) {
-	inputFile, err := cmd.Flags().GetString("input-file")
+func d1GetInput(cmd *cobra.Command, args []string) (left []int, right []int, err error) {
+	inputStr, err := loadInput(cmd, args)
 	if err != nil {
-		return left, right, fmt.Errorf("Couldn't get input-file argument: %#v", err)
-	}
-
-	var input []byte
-
-	if inputFile != "" {
-		slog.Debug("Input file provided. Reading from file", "file", inputFile)
-		input, err = os.ReadFile(inputFile)
-	} else {
-		slog.Debug("No input file provided. Reading from stdin")
-		input, err = io.ReadAll(os.Stdin)
-	}
-	if err != nil {
-		return left, right, fmt.Errorf("Couldn't read input: %#v", err)
-	}
-
-	inputStr := string(input)
-	if inputStr == "" {
-		return left, right, fmt.Errorf("Didn't get any input")
+		return left, right, fmt.Errorf("Couldn't load input: %#v", err)
 	}
 
 	inputStr = strings.TrimSpace(inputStr)
@@ -93,7 +73,7 @@ func getInput(cmd *cobra.Command, args []string) (left []int, right []int, err e
 }
 
 func d1p1Main(cmd *cobra.Command, args []string){
-	left, right, err := getInput(cmd, args)
+	left, right, err := d1GetInput(cmd, args)
 	MaybeDie(err)
 
 	distance, err := TotalDistance(left, right)
@@ -104,7 +84,7 @@ func d1p1Main(cmd *cobra.Command, args []string){
 }
 
 func d1p2Main(cmd *cobra.Command, args []string){
-	left, right, err := getInput(cmd, args)
+	left, right, err := d1GetInput(cmd, args)
 	MaybeDie(err)
 
 	similarity, err := Similarity(left, right)
