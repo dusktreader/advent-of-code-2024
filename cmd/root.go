@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"log/slog"
 	"os"
@@ -37,6 +38,32 @@ func rootMain(cmd *cobra.Command, args []string) {
 	_ = cmd.Help()
 }
 
+func loadInput(cmd *cobra.Command, args []string) (inputStr string, err error) {
+	inputFile, err := cmd.Flags().GetString("input-file")
+	if err != nil {
+		return "", fmt.Errorf("Couldn't get input-file argument: %#v", err)
+	}
+
+	var input []byte
+
+	if inputFile != "" {
+		slog.Debug("Input file provided. Reading from file", "file", inputFile)
+		input, err = os.ReadFile(inputFile)
+	} else {
+		slog.Debug("No input file provided. Reading from stdin")
+		input, err = io.ReadAll(os.Stdin)
+	}
+	if err != nil {
+		return "", fmt.Errorf("Couldn't read input: %#v", err)
+	}
+
+	inputStr = string(input)
+	if inputStr == "" {
+		return "", fmt.Errorf("Didn't get any input")
+	}
+	return inputStr, nil
+}
+
 func MaybeDie(err error) {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "There was an error:", err)
@@ -48,7 +75,6 @@ func Die(msg string) {
 	fmt.Fprintln(os.Stderr, "Aborting:", msg)
 	os.Exit(1)
 }
-
 
 func Execute() {
 	err := rootCmd.Execute()
