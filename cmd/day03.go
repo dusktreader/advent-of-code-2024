@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/dusktreader/advent-of-code-2024/util"
 )
 
 func init() {
@@ -81,12 +82,7 @@ func Redact(inputStr string, annotate bool) (outputStr string) {
 
 }
 
-type Pair struct {
-	Left  int
-	Right int
-}
-
-func IsolatePairs(inputStr string) (pairs []Pair) {
+func IsolatePairs(inputStr string) (pairs []util.Pair[int]) {
 	inputStr = strings.ReplaceAll(inputStr, "\n", "")
 	// We could make the maximum digit count dynamic
 	re := regexp.MustCompile(`mul\((\d{1,3}),(\d{1,3})\)`)
@@ -104,15 +100,12 @@ func IsolatePairs(inputStr string) (pairs []Pair) {
 			slog.Debug("Skipping match due to failed integer conversion in right operand", "err", err)
 			continue
 		}
-		pairs = append(pairs, Pair{
-			Left: left,
-			Right: right,
-		})
+		pairs = append(pairs, util.Pair[int]{left, right})
 	}
 	return
 }
 
-func ProcessPairs(pairs []Pair) (total int) {
+func ProcessPairs(pairs []util.Pair[int]) (total int) {
 	for i, pair := range pairs {
 		slog.Debug("Processing pair:", "i", i, "pair", pair)
 		val := pair.Left * pair.Right
