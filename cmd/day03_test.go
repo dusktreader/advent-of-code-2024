@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/dusktreader/advent-of-code-2024/cmd"
+	"github.com/dusktreader/advent-of-code-2024/util"
 )
 
 func TestIsolatePairs(t *testing.T) {
@@ -30,7 +31,7 @@ func TestIsolatePairs(t *testing.T) {
 	}
 	inputStr := strings.Join(inputs, "")
 
-	want := []cmd.Pair{
+	want := []util.Pair[int]{
 		{1, 2},
 		{0, 999},
 		{1, 2},
@@ -44,7 +45,7 @@ func TestIsolatePairs(t *testing.T) {
 
 func TestProcesPairs(t *testing.T) {
 	slog.SetLogLoggerLevel(slog.LevelDebug)
-	instructions := []cmd.Pair{
+	instructions := []util.Pair[int]{
 		{1, 2},
 		{0, 999},
 		{1, 2},
