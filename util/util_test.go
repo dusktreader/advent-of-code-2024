@@ -65,6 +65,69 @@ func TestSet(t *testing.T) {
 
 }
 
+func TestSetMap(t *testing.T) {
+	sm := util.MakeSetMap[string, int]()
+
+	sm.Add("foo", 1, 2)
+
+	got := sm.Get("foo")
+	want := util.MakeSet(1, 2)
+	if !got.Eq(want) {
+		t.Fatalf(`SetMap didn't have matching sets for key "foo": want %v, got %v`, want, got)
+	}
+
+	sm.Add("bar", 3, 4, 5)
+	got = sm.Get("bar")
+	want = util.MakeSet(3, 4, 5)
+	if !got.Eq(want) {
+		t.Fatalf(`SetMap didn't have matching sets for key "bar": want %v, got %v`, want, got)
+	}
+	got.Add(5, 6, 7)
+	got2 := sm.Get("bar")
+	want = util.MakeSet(3, 4, 5, 5, 6, 7)
+	if !got2.Eq(want) {
+		t.Fatalf(`SetMap didn't have matching sets for key "bar": want %v, got %v`, want, got2)
+	}
+
+	got = sm.Pop("foo")
+	want = util.MakeSet(1, 2)
+	if !got.Eq(want) {
+		t.Fatalf(`SetMap didn't have matching sets for key "bar": want %v, got %v`, want, got)
+	}
+	got2 = sm.Pop("foo")
+	want = util.MakeSet[int]()
+	if !got2.Eq(want) {
+		t.Fatalf(`SetMap didn't have matching sets for key "bar": want %v, got %v`, want, got2)
+	}
+	got.Add(3, 4, 5)
+	got2 = sm.Pop("foo")
+	if !got2.Eq(want) {
+		t.Fatalf(`SetMap didn't have matching sets for key "bar": want %v, got %v`, want, got2)
+	}
+
+	sm.Clear()
+	sm.Add("foo", -1, -2, -3)
+	sm.Add("bar", -4, -5)
+
+	om := util.MakeSetMap[string, int]()
+	om.Add("foo", -1, -2, -3)
+	om.Add("bar", -4, -5)
+
+	if !sm.Eq(&om) {
+		t.Fatalf(`SetMaps didn't equal: sm %v, om %v`, sm, om)
+	}
+
+	om = sm.Clone()
+	if !sm.Eq(&om) {
+		t.Fatalf(`SetMaps didn't equal: sm %v, om %v`, sm, om)
+	}
+
+	om.Add("bar", -6)
+	if sm.Eq(&om) {
+		t.Fatalf(`SetMaps were equal after modifying om: sm %v, om %v`, sm, om)
+	}
+}
+
 func TestDagBasic(t *testing.T) {
 	dag := util.MakeDag[int]()
 	if dag.Nodes().Size() != 0 {

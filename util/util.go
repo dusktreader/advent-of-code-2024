@@ -3,9 +3,15 @@ package util
 import (
 	"fmt"
 	"iter"
+	"log/slog"
 	"math/rand"
 	"strings"
 )
+
+func ReErr(err error, msg string, fmtArgs ...any) error {
+	fmtMsg := fmt.Sprintf(msg, fmtArgs)
+	return fmt.Errorf("%s: %+v", fmtMsg, err)
+}
 
 func AbsInt(i int) int {
 	if i < 0 {
@@ -24,6 +30,14 @@ func MapClone[T comparable, U any](m map[T]U, clone ...func(U) U) (map[T]U) {
 		}
 	}
 	return n
+}
+
+func KeySet[T comparable, U any](m map[T]U) Set[T] {
+	s := MakeSet[T]()
+	for k := range m {
+		s.Add(k)
+	}
+	return s
 }
 
 func Shuffle(numbers []int) []int {
@@ -81,7 +95,7 @@ func (s Set[T]) Clone() (Set[T]) {
 
 func (s Set[T]) String() (string) {
 	keys := []string{}
-	for k, _ := range s.contents {
+	for k := range s.contents {
 		keys = append(keys, fmt.Sprintf("%+v", k))
 	}
 	return "{" + strings.Join(keys, ", ") + "}"
@@ -93,7 +107,7 @@ func (s Set[T]) Size() (int) {
 
 func (s Set[T]) Iter() (iter.Seq[T]) {
 	return func(yield func(T) bool) {
-		for k, _ := range s.contents {
+		for k := range s.contents {
 			if !yield(k) {
 				return
 			}
@@ -115,8 +129,10 @@ func (s Set[T]) Eq(o Set[T]) (bool) {
 	return true
 }
 
-func (s *Set[T]) Add(item T) {
-	s.contents[item] = true
+func (s *Set[T]) Add(items ...T) {
+	for _, v := range items {
+		s.contents[v] = true
+	}
 }
 
 func (s *Set[T]) Pop() (item T) {
@@ -178,6 +194,99 @@ func (s Set[T]) Prune(item T) (Set[T]) {
 	return n
 }
 
+type SetMap [T comparable, U comparable] struct {
+	contents map[T]Set[U]
+}
+
+func MakeSetMap[T comparable, U comparable]() SetMap[T, U] {
+	sm := SetMap[T, U]{}
+	sm.contents = make(map[T]Set[U])
+	return sm
+}
+
+func (sm SetMap[T, U]) String() (string) {
+	sets := make([]string, len(sm.contents))
+	i := 0
+	for k, s := range sm.contents {
+		sets[i] = fmt.Sprintf("%+v: %v", k, s)
+		i++
+	}
+	return "{" + strings.Join(sets, ", ") + "}"
+}
+
+
+func (sm *SetMap[T, U]) Iter() iter.Seq2[T, Set[U]] {
+	return func(yield func(T, Set[U]) bool) {
+		for k, s := range sm.contents {
+			if !yield(k, s) {
+				return
+			}
+		}
+	}
+}
+
+func (sm *SetMap[T, U]) Add(key T, items ...U) {
+	s, ok := sm.contents[key]
+	if !ok {
+		sm.contents[key] = MakeSet(items...)
+	} else {
+		s.Add(items...)
+	}
+}
+
+func (sm *SetMap[T, U]) Size() int {
+	return len(sm.contents)
+}
+
+func (sm *SetMap[T, U]) Has(key T) bool {
+	_, ok := sm.contents[key]
+	return ok
+}
+
+func (sm *SetMap[T, U]) Get(key T) *Set[U] {
+	s, ok := sm.contents[key]
+	if !ok {
+		s = MakeSet[U]()
+		sm.contents[key] = s
+	}
+	return &s
+}
+
+func (sm *SetMap[T, U]) Pop(key T) *Set[U] {
+	s, ok := sm.contents[key]
+	if !ok {
+		s := MakeSet[U]()
+		return &s
+	} else {
+		delete(sm.contents, key)
+	}
+	return &s
+}
+
+func (sm *SetMap[T, U]) Clear() {
+	sm.contents = make(map[T]Set[U])
+}
+
+func (sm *SetMap[T, U]) Eq(om *SetMap[T, U]) bool {
+	sKeys := KeySet(sm.contents)
+	oKeys := KeySet(om.contents)
+	if !sKeys.Eq(oKeys) {
+		return false
+	}
+	for k := range sKeys.Iter() {
+		if !sm.Get(k).Eq(*om.Get(k)) {
+			return false
+		}
+	}
+	return true
+}
+
+func (sm *SetMap[T, U]) Clone() SetMap[T, U] {
+	nm := MakeSetMap[T, U]()
+	nm.contents = MapClone(sm.contents, func (s Set[U]) Set[U] { return s.Clone() })
+	return nm
+}
+
 type Pair [T any] struct {
 	Left T
 	Right T
@@ -187,6 +296,128 @@ func MakePair[T any](left T, right T) (p Pair[T]) {
 	p.Left = left
 	p.Right = right
 	return
+}
+
+type Point struct {
+	I int
+	J int
+}
+
+func MakePoint(i int, j int) (p Point) {
+	p.I = i
+	p.J = j
+	return
+}
+
+func (p Point) String() (string) {
+	return fmt.Sprintf("(%v, %v)", p.I, p.J)
+}
+
+func (p Point) Move(v Vector) Point {
+	return Point{I: p.I + v.Di, J: p.J + v.Dj}
+}
+
+type Vector struct {
+	Di int
+	Dj int
+}
+
+func MakeVector(di int, dj int) (v Vector) {
+	v.Di = di
+	v.Dj = dj
+	return
+}
+
+func (v Vector) Rot() (Vector) {
+	if v.Di == 0 {
+		return Vector{Di: v.Dj, Dj: 0}
+	} else {
+		return Vector{Di: 0, Dj: -v.Di}
+	}
+}
+
+func (v Vector) String() string {
+	return fmt.Sprintf("<%v, %v>", v.Di, v.Dj)
+}
+
+func (v Vector) Pretty() rune {
+	if v.Di != 0 && v.Dj != 0 {
+		return '?'
+	} else if v.Di == 0 {
+		if v.Dj == -1 {
+			return '<'
+		} else if v.Dj == 0 {
+			return 'o'
+		} else {
+			return '>'
+		}
+	} else if v.Di == -1 {
+		return '^'
+	} else {
+		return 'v'
+	}
+}
+
+type Size struct {
+	W int
+	H int
+}
+
+func MakeSize(w int, h int) (Size, error) {
+	s := Size{W: w, H: h}
+	if w < 0 || h < 0 {
+		return s, fmt.Errorf("Invalid size %s", s)
+	}
+	return s, nil
+}
+
+func (s Size) String() (string) {
+	return fmt.Sprintf("[%v, %v]", s.W, s.H)
+}
+
+func (s Size) Idx(p Point) (int, error) {
+	if s.Out(p) {
+		return -1, fmt.Errorf("Point was out of bounds: %d, %d", p.I, p.J)
+	}
+	return s.W * p.I + p.J, nil
+}
+
+func (s Size) Out(p Point) bool {
+	return p.I < 0 || p.J < 0 || p.I >= s.H || p.J >= s.W
+}
+
+type Grid [T any] struct {
+	items []T
+	size  Size
+}
+
+func MakeGrid [T any] (s Size, items ...[]T) (*Grid[T], error) {
+	grid := Grid[T]{}
+	if len(items) > 0 {
+		if len(items[0]) != s.W * s.H {
+			return nil, fmt.Errorf("Passed items length (%v) doesn't match dimensions: %v", len(items[0]), s)
+		}
+		grid.items = items[0]
+	} else {
+		grid.items = make([]T, s.W * s.H)
+	}
+	grid.size = s
+	return &grid, nil
+}
+
+func (g Grid[T]) Size() Size {
+	return g.size
+}
+
+func (g Grid[T]) Out(p Point) bool {
+	return p.I < 0 || p.J < 0 || p.I >= g.size.H || p.J >= g.size.W
+}
+
+func (g Grid[T]) Get(p Point) (*T, error) {
+	if g.Out(p) {
+		return nil, fmt.Errorf("Point was out of bounds: %d, %d", p.I, p.J)
+	}
+	return &g.items[g.size.W * p.I + p.J], nil
 }
 
 type DAG [T comparable] struct {
@@ -466,6 +697,7 @@ func (dag DAG[T]) SortDumb(items []T) []T {
 	itemSet := MakeSet(items...)
 	prunedDag := dag.Prune(itemSet)
 	newItems, err := prunedDag.Sort(items)
+	slog.Error("Should really do something with this:", "err", err)
 	return newItems
 }
 
