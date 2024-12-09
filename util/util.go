@@ -7,6 +7,10 @@ import (
 	"strings"
 )
 
+func ReErr(msg string, err error) error {
+	return fmt.Errorf("%s: %+v", msg, err)
+}
+
 func AbsInt(i int) int {
 	if i < 0 {
 		return -i
@@ -186,6 +190,17 @@ type Pair [T any] struct {
 func MakePair[T any](left T, right T) (p Pair[T]) {
 	p.Left = left
 	p.Right = right
+	return
+}
+
+type Point struct {
+	I int
+	J int
+}
+
+func MakePoint(i int, j int) (p Point) {
+	p.I = i
+	p.J = j
 	return
 }
 
