@@ -20,6 +20,7 @@ func AbsInt(i int) int {
 	return i
 }
 
+// Should I maybe create a new SetMap type?
 func MapClone[T comparable, U any](m map[T]U, clone ...func(U) U) (map[T]U) {
 	n := make(map[T]U)
 	for k, v := range m {
@@ -30,6 +31,14 @@ func MapClone[T comparable, U any](m map[T]U, clone ...func(U) U) (map[T]U) {
 		}
 	}
 	return n
+}
+
+func KeySet[T comparable, U any](m map[T]U) Set[T] {
+	s := MakeSet[T]()
+	for k := range m {
+		s.Add(k)
+	}
+	return s
 }
 
 func Shuffle(numbers []int) []int {

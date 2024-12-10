@@ -6,19 +6,7 @@ import (
 
 	"github.com/dusktreader/advent-of-code-2024/cmd"
 	"github.com/dusktreader/advent-of-code-2024/util"
-	"github.com/go-test/deep"
 )
-
-// ....#.....
-// .........#
-// ..........
-// ..#.......
-// .......#..
-// ..........
-// .#..^.....
-// ........#.
-// #.........
-// ......#...
 
 func Unexpect(t *testing.T, err error) {
 	if err != nil {
@@ -35,23 +23,214 @@ func TestParseLabMap(t *testing.T) {
 	got, err := cmd.ParseLabMap(txt)
 	Unexpect(t, err)
 
-	wantGrid, err := util.MakeGrid(
-		util.MakeSize(2, 2),
-		[]cmd.Cell{
-			{TreadCt: 0, HasObs: false},
-			{TreadCt: 0, HasObs: true},
-			{TreadCt: 0, HasObs: true},
-			{TreadCt: 0, HasObs: false},
-		},
-	)
+	want, err := cmd.MakeLabMap(2, 2)
 	Unexpect(t, err)
-	want := cmd.LabMap{
-		GuardPos: util.MakePoint(1, 1),
-		GuardDir: util.MakeVector(0, -1),
-		Grid:     wantGrid,
+
+	want.GuardPos = util.MakePoint(1, 1)
+	want.GuardDir = util.MakeVector(0, -1)
+	want.Obstr    = util.MakeSet([]util.Point{
+		{I: 0, J: 1},
+		{I: 1, J: 0},
+	}...)
+	want.Visits   = map[util.Point]util.Set[util.Vector]{
+		util.MakePoint(1, 1): util.MakeSet(util.MakeVector(0, -1)),
 	}
-	if diff := deep.Equal(&want, got); diff != nil {
-		t.Error(diff)
+	if !want.Eq(got) {
+		t.Errorf("Parsed lab map didn't match:\n\nwant:\n%v\n\ngot:\n%v", want, got)
 	}
 }
 
+func TestWalk(t *testing.T) {
+	lm, err := cmd.ParseLabMap(`
+		...
+		#.<
+		...
+	`)
+	Unexpect(t, err)
+
+	wantLm, err := cmd.ParseLabMap(`
+		...
+		#<.
+		...
+	`)
+	Unexpect(t, err)
+	wantLm.Visits[util.MakePoint(1, 2)] = util.MakeSet(
+		util.MakeVector(0, -1),
+	)
+	wantLm.Visits[util.MakePoint(1, 1)] = util.MakeSet(
+		util.MakeVector(0, -1),
+	)
+	wantIn := true
+
+	gotIn, err := lm.Walk()
+	if gotIn != wantIn {
+		t.Errorf("Mismatch 'in' status: want %v, got %v", wantIn, gotIn)
+	}
+
+	if !lm.Eq(wantLm) {
+		t.Fatalf("Maps didn't match:\n\nwant:\n%v\n\ngot:\n%v\n\nwant visits: %+v\ngot visits: %+v", wantLm, lm, wantLm.Visits, lm.Visits)
+	}
+
+	wantLm, err = cmd.ParseLabMap(`
+		...
+		#^.
+		...
+	`)
+	Unexpect(t, err)
+	wantLm.Visits[util.MakePoint(1, 2)] = util.MakeSet(
+		util.MakeVector(0, -1),
+	)
+	wantLm.Visits[util.MakePoint(1, 1)] = util.MakeSet(
+		util.MakeVector(0, -1),
+		util.MakeVector(-1, 0),
+	)
+	wantIn = true
+
+	gotIn, err = lm.Walk()
+	if gotIn != wantIn {
+		t.Errorf("Mismatch 'in' status: want %v, got %v", wantIn, gotIn)
+	}
+
+	if !lm.Eq(wantLm) {
+		t.Fatalf("Maps didn't match:\n\nwant:\n%v\n\ngot:\n%v\n\nwant visits: %+v\ngot visits: %+v", wantLm, lm, wantLm.Visits, lm.Visits)
+	}
+
+	wantLm, err = cmd.ParseLabMap(`
+		.^.
+		#..
+		...
+	`)
+	Unexpect(t, err)
+	wantLm.Visits[util.MakePoint(1, 2)] = util.MakeSet(
+		util.MakeVector(0, -1),
+	)
+	wantLm.Visits[util.MakePoint(1, 1)] = util.MakeSet(
+		util.MakeVector(0, -1),
+		util.MakeVector(-1, 0),
+	)
+	wantLm.Visits[util.MakePoint(0, 1)] = util.MakeSet(
+		util.MakeVector(-1, 0),
+	)
+	wantIn = true
+
+	gotIn, err = lm.Walk()
+	if gotIn != wantIn {
+		t.Errorf("Mismatch 'in' status: want %v, got %v", wantIn, gotIn)
+	}
+
+	if !lm.Eq(wantLm) {
+		t.Fatalf("Maps didn't match:\n\nwant:\n%v\n\ngot:\n%v\n\nwant visits: %+v\ngot visits: %+v", wantLm, lm, wantLm.Visits, lm.Visits)
+	}
+
+	wantLm, err = cmd.ParseLabMap(`
+		...
+		#..
+		...
+	`)
+	Unexpect(t, err)
+	wantLm.Visits[util.MakePoint(1, 2)] = util.MakeSet(
+		util.MakeVector(0, -1),
+	)
+	wantLm.Visits[util.MakePoint(1, 1)] = util.MakeSet(
+		util.MakeVector(0, -1),
+		util.MakeVector(-1, 0),
+	)
+	wantLm.Visits[util.MakePoint(0, 1)] = util.MakeSet(
+		util.MakeVector(-1, 0),
+	)
+	wantLm.GuardPos = util.MakePoint(-1, 1)
+	wantLm.GuardDir = util.MakeVector(-1, 0)
+	wantIn = false
+
+	gotIn, err = lm.Walk()
+	if gotIn != wantIn {
+		t.Errorf("Mismatch 'in' status: want %v, got %v", wantIn, gotIn)
+	}
+
+	if !lm.Eq(wantLm) {
+		t.Fatalf("Maps didn't match:\n\nwant:\n%v\n\ngot:\n%v\n\nwant visits: %+v\ngot visits: %+v", wantLm, lm, wantLm.Visits, lm.Visits)
+	}
+}
+
+func TestPatrol(t *testing.T) {
+	lm, err := cmd.ParseLabMap(`
+		...
+		#.<
+		...
+	`)
+	Unexpect(t, err)
+
+	wantLm, err := cmd.ParseLabMap(`
+		...
+		#..
+		...
+	`)
+	Unexpect(t, err)
+	wantLm.Visits[util.MakePoint(1, 2)] = util.MakeSet(
+		util.MakeVector(0, -1),
+	)
+	wantLm.Visits[util.MakePoint(1, 1)] = util.MakeSet(
+		util.MakeVector(0, -1),
+		util.MakeVector(-1, 0),
+	)
+	wantLm.Visits[util.MakePoint(0, 1)] = util.MakeSet(
+		util.MakeVector(-1, 0),
+	)
+	wantLm.GuardPos = util.MakePoint(-1, 1)
+	wantLm.GuardDir = util.MakeVector(-1, 0)
+	wantIn := false
+
+	lm.Patrol()
+	gotIn := !lm.Size.Out(lm.GuardPos)
+	if gotIn != wantIn {
+		t.Errorf("Mismatch 'in' status: want %v, got %v", wantIn, gotIn)
+	}
+
+	if !lm.Eq(wantLm) {
+		t.Fatalf("Maps didn't match:\n\nwant:\n%v\n\ngot:\n%v\n\nwant visits: %+v\ngot visits: %+v", wantLm, lm, wantLm.Visits, lm.Visits)
+	}
+}
+
+func TestCountVisits(t *testing.T) {
+	lm, err := cmd.ParseLabMap(`
+		....#.....
+		.........#
+		..........
+		..#.......
+		.......#..
+		..........
+		.#..^.....
+		........#.
+		#.........
+		......#...
+	`)
+	Unexpect(t, err)
+	lm.Patrol()
+	want := 41
+	got  := lm.CountVisits()
+	if want != got {
+		t.Fatalf("Visit count didn't match: want: %v, got: %v, final map:\n%v", want, got, lm)
+	}
+}
+
+func TestLoopify(t *testing.T) {
+	lm, err := cmd.ParseLabMap(`
+		....#.....
+		.........#
+		..........
+		..#.......
+		.......#..
+		..........
+		.#..^.....
+		........#.
+		#.........
+		......#...
+	`)
+	Unexpect(t, err)
+	got, err := lm.Loopify()
+	Unexpect(t, err)
+	want := 6
+	if want != got {
+		t.Fatalf("New obstruction count didn't match: want: %v, got: %v", want, got)
+	}
+}

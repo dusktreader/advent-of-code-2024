@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-"log/slog"
+	"log/slog"
 	"strings"
 
 	"github.com/dusktreader/advent-of-code-2024/util"
@@ -14,10 +14,6 @@ func init() {
 	d6Cmd.PersistentFlags().StringP("input-file", "i", "", "Get input from a file instead of stdin")
 	d6Cmd.AddCommand(d6p1Cmd)
 	d6Cmd.AddCommand(d6p2Cmd)
-	d6p2Cmd.Flags().BoolP("annotate", "a", false, "Annotate redacted input string")
-	d6Cmd.AddCommand(mermaidCmd)
-	d6Cmd.AddCommand(dotCmd)
-	d6Cmd.AddCommand(validateCmd)
 }
 
 var d6Cmd = &cobra.Command{
@@ -49,31 +45,85 @@ func d6p1Main(cmd *cobra.Command, args []string) {
 	inputStr, err := loadInput(cmd, args)
 	MaybeDie(err)
 
-	manual, err := ParseInput(inputStr)
+	lm, err := ParseLabMap(inputStr)
 	MaybeDie(err)
 
-	manual.Validate()
-	slog.Debug("Results:", "ValidCheckSum", manual.ValidCheckSum)
-	fmt.Printf("%v\n", manual.ValidCheckSum)
+	err = lm.Patrol()
+	MaybeDie(err)
+
+	ct := lm.CountVisits()
+
+	slog.Debug("Results:", "VisitCount", ct)
+	fmt.Printf("%v\n", ct)
 }
 
 func d6p2Main(cmd *cobra.Command, args []string) {
-}
+	inputStr, err := loadInput(cmd, args)
+	MaybeDie(err)
 
-type mark int
+	lm, err := ParseLabMap(inputStr)
+	MaybeDie(err)
 
-type Visit struct {
-	Pt   util.Point
-	Dir  util.Vector
+	ct, err := lm.Loopify()
+	MaybeDie(err)
+
+	slog.Debug("Results:", "NewObstacleCount", ct)
+	fmt.Printf("%v\n", ct)
 }
 
 type LabMap struct {
 	Size     util.Size
 	GuardPos util.Point
 	GuardDir util.Vector
-	Visits   util.Set[Visit]
+	Visits   map[util.Point]util.Set[util.Vector]
 	Obstr    util.Set[util.Point]
 
+}
+
+func (lm *LabMap) Eq(om *LabMap) bool {
+	if lm.Size != om.Size {
+		slog.Debug("Sizes didn't match", "us", lm.Size, "them", om.Size)
+		return false
+	} else if lm.GuardPos != om.GuardPos {
+		slog.Debug("Guard positions didn't match", "us", lm.GuardPos, "them", om.GuardPos)
+		return false
+	} else if lm.GuardDir != om.GuardDir {
+		slog.Debug("Guard directions didn't match", "us", lm.GuardDir, "them", om.GuardDir)
+		return false
+	} else if !lm.Obstr.Eq(om.Obstr) {
+		slog.Debug("Obstructions didn't match", "us", lm.Obstr, "them", om.Obstr)
+		return false
+	}
+
+	lKeys := util.KeySet(lm.Visits)
+	oKeys := util.KeySet(om.Visits)
+	if !lKeys.Eq(oKeys) {
+		slog.Debug("Visit keys didn't match", "us", lKeys, "them", oKeys)
+		return false
+	}
+	for k, lV := range lm.Visits {
+		oV := om.Visits[k]
+		if !lV.Eq(oV) {
+			slog.Debug("Visits didn't match for position", "pt", k, "us", lV, "them", oV)
+			return false
+		}
+	}
+
+	return true
+}
+
+func (lm *LabMap) Visit(pt util.Point, dir util.Vector) error {
+	visits, ok := lm.Visits[pt]
+	if !ok {
+		lm.Visits[pt] = util.MakeSet(dir)
+	} else if !visits.Has(dir) {
+		visits.Add(dir)
+	} else {
+		return fmt.Errorf("Walk cycle detected at %v facing %v", pt, dir)
+	}
+	lm.GuardPos = pt
+	lm.GuardDir = dir
+	return nil
 }
 
 func MakeLabMap(w int, h int) (*LabMap, error) {
@@ -83,39 +133,75 @@ func MakeLabMap(w int, h int) (*LabMap, error) {
 	if err != nil {
 		return nil, util.ReErr(err, "Couldn't make LabMap")
 	}
-	lm.Visits = util.MakeSet[Visit]()
+	lm.Visits = make(map[util.Point]util.Set[util.Vector])
 	lm.Obstr  = util.MakeSet[util.Point]()
 	return &lm, nil
 }
 
-func (lm *LabMap) Walk() (bool, error) {
-	var newPos util.Point
-	var newDir util.Vector
+func (lm *LabMap) Clone() *LabMap {
+	om := LabMap{}
+	om.Size     = lm.Size
+	om.GuardPos = lm.GuardPos
+	om.GuardDir = lm.GuardDir
+	om.Visits   = util.MapClone(om.Visits, func (s util.Set[util.Vector]) (util.Set[util.Vector]) { return s.Clone() })
+	om.Obstr    = lm.Obstr.Clone()
+	return &om
+}
 
-	newPos = lm.GuardPos.Move(lm.GuardDir)
-	cell, err := lm.Grid.Get(newPos)
-	if err != nil {
-		// Error indicates we've exited the grid
+func (lm *LabMap) Walk() (bool, error) {
+	lastPos := lm.GuardPos
+	lm.GuardPos = lm.GuardPos.Move(lm.GuardDir)
+	if lm.Size.Out(lm.GuardPos) {
 		return false, nil
 	}
 
-	if cell.HasObs {
-		newDir = lm.GuardDir.Rot()
-		newPos = lm.GuardPos
-	} else {
-		newDir = lm.GuardDir
+	if lm.Obstr.Has(lm.GuardPos) {
+		lm.GuardPos = lastPos
+		lm.GuardDir = lm.GuardDir.Rot()
 	}
-
-	if cell.PrevDirs.Has(lm.GuardDir) {
-		return false, fmt.Errorf("Walk cycle detected at %v facing %v", newPos, newDir)
+	err := lm.Visit(lm.GuardPos, lm.GuardDir)
+	if err != nil {
+		return false, fmt.Errorf("Couldn't walk: %#v", err)
 	}
-
-	lm.GuardDir = newDir
-	lm.GuardPos = newPos
-	cell.PrevDirs.Add(newDir)
 	return true, nil
 }
 
+func (lm *LabMap) Patrol() error {
+	for {
+		stillIn, err := lm.Walk()
+		if err != nil {
+			return util.ReErr(err, "Patrol failed")
+		} else if !stillIn {
+			return nil
+		}
+	}
+}
+
+func (lm *LabMap) Loopify() (int, error) {
+	count := 0
+	for {
+		oPos := lm.GuardPos.Move(lm.GuardDir)
+		if !lm.Size.Out(oPos) && !lm.Obstr.Has(oPos) {
+			om := lm.Clone()
+			om.Obstr.Add(oPos)
+			err := om.Patrol()
+			if err != nil {
+				count++
+			}
+		}
+
+		stillIn, err := lm.Walk()
+		if err != nil {
+			return 0, util.ReErr(err, "Map already had an infinite loop")
+		} else if !stillIn {
+			return count, nil
+		}
+	}
+}
+
+func (lm *LabMap) CountVisits() int {
+	return len(lm.Visits)
+}
 
 func ParseLabMap(inputStr string) (lm *LabMap, err error) {
 	inputStr = strings.TrimSpace(inputStr)
@@ -139,51 +225,38 @@ func ParseLabMap(inputStr string) (lm *LabMap, err error) {
 			}
 			switch rn {
 			case '#':
-				v.HasObs = true
+				lm.Obstr.Add(pt)
 			case '^':
-				lm.GuardPos = pt
-				lm.GuardDir = util.MakeVector(-1, 0)
-				lm.Visits.Add(lm.GuardPos)
-				v.PrevDirs.Add(lm.GuardDir)
+				lm.Visit(pt, util.MakeVector(-1, 0))
 			case '>':
-				lm.GuardPos = pt
-				lm.GuardDir = util.MakeVector(0, 1)
-				lm.Visits.Add(lm.GuardPos)
-				v.PrevDirs.Add(lm.GuardDir)
+				lm.Visit(pt, util.MakeVector(0, 1))
 			case 'v':
-				lm.GuardPos = pt
-				lm.GuardDir = util.MakeVector(1, 0)
-				lm.Visits.Add(lm.GuardPos)
-				v.PrevDirs.Add(lm.GuardDir)
+				lm.Visit(pt, util.MakeVector(1, 0))
 			case '<':
-				lm.GuardPos = pt
-				lm.GuardDir = util.MakeVector(0, -1)
-				lm.Visits.Add(lm.GuardPos)
-				v.PrevDirs.Add(lm.GuardDir)
+				lm.Visit(pt, util.MakeVector(0, -1))
 			}
 		}
 	}
-	return &lm, err
+	return lm, nil
 }
 
 func (lm *LabMap) String() string {
-	lines := make([]string, lm.Grid.Size().H)
-	for i := range lm.Grid.Size().H {
-		line := make([]rune, lm.Grid.Size().W)
-		for j := range lm.Grid.Size().W {
+	lines := make([]string, lm.Size.H)
+	for i := range lm.Size.H {
+		line := make([]rune, lm.Size.W)
+		for j := range lm.Size.W {
 			pt := util.MakePoint(i, j)
-			c, err := lm.Grid.Get(pt)
-			if err != nil {
-				return "INVALID MAP"
-			}
-			if c.HasObs {
+			if lm.Obstr.Has(pt) {
 				line[j] = '#'
 			} else if pt == lm.GuardPos {
 				line[j] = lm.GuardDir.Pretty()
-			} else if c.TreadCt > 0 {
-				line[j] = 'X'
-			} else {
-				line[j] = '.'
+			} else  {
+				_, ok := lm.Visits[pt]
+				if !ok {
+					line[j] = '.'
+				} else {
+					line[j] = 'X'
+				}
 			}
 
 		}
