@@ -2,8 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"log/slog"
-	"strconv"
+"log/slog"
 	"strings"
 
 	"github.com/dusktreader/advent-of-code-2024/util"
@@ -63,38 +62,132 @@ func d6p2Main(cmd *cobra.Command, args []string) {
 
 type mark int
 
-const (
-	Guard mark = iota + 1
-	Obstr
-	Empty
-	Tread
-)
-
-type LabMap struct {
-	GuardPos util.Point
-	GuardDir util.Point
-	Grid     []mark
-	GridSz   util.Point
+type Visit struct {
+	Pt   util.Point
+	Dir  util.Vector
 }
 
-func ParseLabMap(inputStr string) (LabMap, error) {
+type LabMap struct {
+	Size     util.Size
+	GuardPos util.Point
+	GuardDir util.Vector
+	Visits   util.Set[Visit]
+	Obstr    util.Set[util.Point]
+
+}
+
+func MakeLabMap(w int, h int) (*LabMap, error) {
+	var err error
+	lm := LabMap{}
+	lm.Size, err = util.MakeSize(w, h)
+	if err != nil {
+		return nil, util.ReErr(err, "Couldn't make LabMap")
+	}
+	lm.Visits = util.MakeSet[Visit]()
+	lm.Obstr  = util.MakeSet[util.Point]()
+	return &lm, nil
+}
+
+func (lm *LabMap) Walk() (bool, error) {
+	var newPos util.Point
+	var newDir util.Vector
+
+	newPos = lm.GuardPos.Move(lm.GuardDir)
+	cell, err := lm.Grid.Get(newPos)
+	if err != nil {
+		// Error indicates we've exited the grid
+		return false, nil
+	}
+
+	if cell.HasObs {
+		newDir = lm.GuardDir.Rot()
+		newPos = lm.GuardPos
+	} else {
+		newDir = lm.GuardDir
+	}
+
+	if cell.PrevDirs.Has(lm.GuardDir) {
+		return false, fmt.Errorf("Walk cycle detected at %v facing %v", newPos, newDir)
+	}
+
+	lm.GuardDir = newDir
+	lm.GuardPos = newPos
+	cell.PrevDirs.Add(newDir)
+	return true, nil
+}
+
+
+func ParseLabMap(inputStr string) (lm *LabMap, err error) {
 	inputStr = strings.TrimSpace(inputStr)
-	manual := MakeManual()
 
 	lines := strings.Split(inputStr, "\n")
 
-	lm := LabMap{}
 	for i, line := range lines {
 		line = strings.TrimSpace(line)
-		if lm.Grid == nil {
-			lm.GridSz = util.MakePoint(len(lines), len(line))
-			lm.Grid = make([]mark, lm.GridSz.I * lm.GridSz.J)
-		} else if len(line) != lm.GridSz.J {
-			return lm, fmt.Errorf("Line #%v has a different size: %v", i, len(line))
+		if lm == nil {
+			lm, err = MakeLabMap(len(lines), len(line))
+			if err != nil {
+				return nil, util.ReErr(err, "Couldn't parse lab map")
+			}
+		} else if len(line) != lm.Size.W {
+			return nil, fmt.Errorf("Line #%v has a different size: %v", i, len(line))
 		}
 		for j, rn := range line {
-
+			pt := util.MakePoint(i, j)
+			if err != nil {
+				return nil, util.ReErr(err, "Bad point %v", pt)
+			}
+			switch rn {
+			case '#':
+				v.HasObs = true
+			case '^':
+				lm.GuardPos = pt
+				lm.GuardDir = util.MakeVector(-1, 0)
+				lm.Visits.Add(lm.GuardPos)
+				v.PrevDirs.Add(lm.GuardDir)
+			case '>':
+				lm.GuardPos = pt
+				lm.GuardDir = util.MakeVector(0, 1)
+				lm.Visits.Add(lm.GuardPos)
+				v.PrevDirs.Add(lm.GuardDir)
+			case 'v':
+				lm.GuardPos = pt
+				lm.GuardDir = util.MakeVector(1, 0)
+				lm.Visits.Add(lm.GuardPos)
+				v.PrevDirs.Add(lm.GuardDir)
+			case '<':
+				lm.GuardPos = pt
+				lm.GuardDir = util.MakeVector(0, -1)
+				lm.Visits.Add(lm.GuardPos)
+				v.PrevDirs.Add(lm.GuardDir)
+			}
 		}
 	}
+	return &lm, err
+}
 
+func (lm *LabMap) String() string {
+	lines := make([]string, lm.Grid.Size().H)
+	for i := range lm.Grid.Size().H {
+		line := make([]rune, lm.Grid.Size().W)
+		for j := range lm.Grid.Size().W {
+			pt := util.MakePoint(i, j)
+			c, err := lm.Grid.Get(pt)
+			if err != nil {
+				return "INVALID MAP"
+			}
+			if c.HasObs {
+				line[j] = '#'
+			} else if pt == lm.GuardPos {
+				line[j] = lm.GuardDir.Pretty()
+			} else if c.TreadCt > 0 {
+				line[j] = 'X'
+			} else {
+				line[j] = '.'
+			}
+
+		}
+		lines[i] = string(line)
+	}
+	return strings.Join(lines, "\n")
 }
