@@ -9,12 +9,6 @@ import (
 	"github.com/dusktreader/advent-of-code-2024/util"
 )
 
-func Unexpect(t *testing.T, err error) {
-	if err != nil {
-		t.Fatalf("Unexpected error: %#v", err)
-	}
-}
-
 func TestParseLabMap(t *testing.T) {
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 	txt := `
@@ -22,10 +16,10 @@ func TestParseLabMap(t *testing.T) {
 		#<
 	`
 	got, err := cmd.ParseLabMap(txt)
-	Unexpect(t, err)
+	util.Unexpect(t, err)
 
 	want, err := cmd.MakeLabMap(2, 2)
-	Unexpect(t, err)
+	util.Unexpect(t, err)
 
 	want.GuardPos = util.MakePoint(1, 1)
 	want.GuardDir = util.MakeVector(0, -1)
@@ -46,14 +40,14 @@ func TestWalk(t *testing.T) {
 		#.<
 		...
 	`)
-	Unexpect(t, err)
+	util.Unexpect(t, err)
 
 	wantLm, err := cmd.ParseLabMap(`
 		...
 		#<.
 		...
 	`)
-	Unexpect(t, err)
+	util.Unexpect(t, err)
 	wantLm.Visits   = util.MakeSetMap[util.Point, util.Vector]()
 	wantLm.Visits.Add(util.MakePoint(1, 2), util.MakeVector(0, -1))
 	wantLm.Visits.Add(util.MakePoint(1, 1), util.MakeVector(0, -1))
@@ -73,7 +67,7 @@ func TestWalk(t *testing.T) {
 		#^.
 		...
 	`)
-	Unexpect(t, err)
+	util.Unexpect(t, err)
 	wantLm.Visits   = util.MakeSetMap[util.Point, util.Vector]()
 	wantLm.Visits.Add(util.MakePoint(1, 2), util.MakeVector(0, -1))
 	wantLm.Visits.Add(util.MakePoint(1, 1), util.MakeVector(0, -1), util.MakeVector(-1, 0))
@@ -93,7 +87,7 @@ func TestWalk(t *testing.T) {
 		#..
 		...
 	`)
-	Unexpect(t, err)
+	util.Unexpect(t, err)
 	wantLm.Visits   = util.MakeSetMap[util.Point, util.Vector]()
 	wantLm.Visits.Add(util.MakePoint(1, 2), util.MakeVector(0, -1))
 	wantLm.Visits.Add(util.MakePoint(1, 1), util.MakeVector(0, -1), util.MakeVector(-1, 0))
@@ -114,7 +108,7 @@ func TestWalk(t *testing.T) {
 		#..
 		...
 	`)
-	Unexpect(t, err)
+	util.Unexpect(t, err)
 	wantLm.Visits   = util.MakeSetMap[util.Point, util.Vector]()
 	wantLm.Visits.Add(util.MakePoint(1, 2), util.MakeVector(0, -1))
 	wantLm.Visits.Add(util.MakePoint(1, 1), util.MakeVector(0, -1), util.MakeVector(-1, 0))
@@ -139,14 +133,14 @@ func TestPatrol(t *testing.T) {
 		#.<
 		...
 	`)
-	Unexpect(t, err)
+	util.Unexpect(t, err)
 
 	wantLm, err := cmd.ParseLabMap(`
 		...
 		#..
 		...
 	`)
-	Unexpect(t, err)
+	util.Unexpect(t, err)
 	wantLm.Visits   = util.MakeSetMap[util.Point, util.Vector]()
 	wantLm.Visits.Add(util.MakePoint(1, 2), util.MakeVector(0, -1))
 	wantLm.Visits.Add(util.MakePoint(1, 1), util.MakeVector(0, -1), util.MakeVector(-1, 0))
@@ -179,7 +173,7 @@ func TestCountVisits(t *testing.T) {
 		#.........
 		......#...
 	`)
-	Unexpect(t, err)
+	util.Unexpect(t, err)
 	lm.Patrol()
 	want := 41
 	got  := lm.CountVisits()
@@ -201,9 +195,9 @@ func TestLoopify(t *testing.T) {
 		#.........
 		......#...
 	`)
-	Unexpect(t, err)
+	util.Unexpect(t, err)
 	err = lm.Loopify()
-	Unexpect(t, err)
+	util.Unexpect(t, err)
 	got := lm.CountLoopers()
 	want := 6
 	if want != got {
@@ -222,9 +216,9 @@ func TestLoopify(t *testing.T) {
 		..........
 		..........
 	`)
-	Unexpect(t, err)
+	util.Unexpect(t, err)
 	err = lm.Loopify()
-	Unexpect(t, err)
+	util.Unexpect(t, err)
 	got = lm.CountLoopers()
 	fmt.Printf("\n\n%v\n", lm)
 	want = 1

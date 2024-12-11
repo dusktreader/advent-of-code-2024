@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"iter"
 	"log/slog"
+	"math"
 	"math/rand"
 	"strings"
+	"testing"
 )
 
 func ReErr(err error, msg string, fmtArgs ...any) error {
-	fmtMsg := fmt.Sprintf(msg, fmtArgs)
+	fmtMsg := fmt.Sprintf(msg, fmtArgs...)
 	return fmt.Errorf("%s: %+v", fmtMsg, err)
 }
 
@@ -18,6 +20,18 @@ func AbsInt(i int) int {
 		return -i
 	}
 	return i
+}
+
+func PowInt(x int, y int) int {
+	return int(math.Pow(float64(x), float64(y)))
+}
+
+func Pow2(x int) int {
+	return 1 << x
+}
+
+func Pow3(x int) int {
+	return int(math.Pow(3, float64(x)))
 }
 
 func MapClone[T comparable, U any](m map[T]U, clone ...func(U) U) (map[T]U) {
@@ -721,3 +735,10 @@ func (dag DAG[T]) Sort(items []T) ([]T, error) {
 	}
 	return nil, fmt.Errorf("Couldn't sort items %+v using dag", items)
 }
+
+func Unexpect(t *testing.T, err error) {
+	if err != nil {
+		t.Fatalf("Unexpected error: %#v", err)
+	}
+}
+
