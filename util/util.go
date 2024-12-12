@@ -34,6 +34,15 @@ func Pow3(x int) int {
 	return int(math.Pow(3, float64(x)))
 }
 
+func GCD(a int, b int) int {
+	for b != 0 {
+		t := b
+		b = a % b
+		a = t
+	}
+	return a
+}
+
 func MapClone[T comparable, U any](m map[T]U, clone ...func(U) U) (map[T]U) {
 	n := make(map[T]U)
 	for k, v := range m {
@@ -188,6 +197,12 @@ func (s Set[T]) Ix(o Set[T]) (Set[T]) {
 	return n
 }
 
+func (s Set[T]) Un(o Set[T]) (Set[T]) {
+	n := s.Clone()
+	n.Add(o.Items()...)
+	return n
+}
+
 func (s Set[T]) Diff(o Set[T]) (Set[T]) {
 	n := MakeSet[T]()
 	for _, v := range s.Items() {
@@ -327,8 +342,12 @@ func (p Point) String() (string) {
 	return fmt.Sprintf("(%v, %v)", p.I, p.J)
 }
 
-func (p Point) Move(v Vector) Point {
+func (p Point) Add(v Vector) Point {
 	return Point{I: p.I + v.Di, J: p.J + v.Dj}
+}
+
+func (p Point) Diff(o Point) (Vector) {
+	return Vector{Di: p.I - o.I, Dj: p.J - o.J}
 }
 
 type Vector struct {
@@ -340,6 +359,18 @@ func MakeVector(di int, dj int) (v Vector) {
 	v.Di = di
 	v.Dj = dj
 	return
+}
+
+func (v Vector) Neg() (Vector) {
+	return Vector{Di: -v.Di, Dj: -v.Dj}
+}
+
+func (v Vector) Div(d int) Vector {
+	return Vector{Di: v.Di / d, Dj: v.Dj /d}
+}
+
+func (v Vector) Mul(m int) Vector {
+	return Vector{Di: v.Di * m, Dj: v.Dj * m}
 }
 
 func (v Vector) Rot() (Vector) {

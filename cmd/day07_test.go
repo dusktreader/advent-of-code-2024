@@ -2,10 +2,6 @@ package cmd_test
 
 import (
 	"log/slog"
-	"math"
-	"math/rand/v2"
-	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/dusktreader/advent-of-code-2024/cmd"

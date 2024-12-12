@@ -166,7 +166,7 @@ func (lm *LabMap) Clone() *LabMap {
 
 func (lm *LabMap) Walk() (bool, error) {
 	lastPos := lm.GuardPos
-	lm.GuardPos = lm.GuardPos.Move(lm.GuardDir)
+	lm.GuardPos = lm.GuardPos.Add(lm.GuardDir)
 	if lm.Size.Out(lm.GuardPos) {
 		return false, nil
 	}
@@ -199,7 +199,7 @@ func (lm *LabMap) CountVisits() int {
 
 func (lm *LabMap) Loopify() error {
 	for {
-		oPos := lm.GuardPos.Move(lm.GuardDir)
+		oPos := lm.GuardPos.Add(lm.GuardDir)
 		if !lm.Size.Out(oPos) && !lm.Obstr.Has(oPos) && !lm.Visits.Has(oPos) {
 			om := lm.Clone()
 			om.Obstr.Add(oPos)
