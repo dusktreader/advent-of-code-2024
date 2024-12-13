@@ -22,6 +22,13 @@ func AbsInt(i int) int {
 	return i
 }
 
+func MinI(a int, b int) int {
+	if a > b {
+		return b
+	}
+	return a
+}
+
 func PowInt(x int, y int) int {
 	return int(math.Pow(float64(x), float64(y)))
 }
@@ -42,6 +49,11 @@ func GCD(a int, b int) int {
 	}
 	return a
 }
+
+func Insert[T any](l []T, i int, v ...T) []T {
+	return append(l[:i], append(v, l[i:]...)...)
+}
+
 
 func MapClone[T comparable, U any](m map[T]U, clone ...func(U) U) (map[T]U) {
 	n := make(map[T]U)
