@@ -15,6 +15,12 @@ func ReErr(err error, msg string, fmtArgs ...any) error {
 	return fmt.Errorf("%s: %+v", fmtMsg, err)
 }
 
+func Unexpect(t *testing.T, err error) {
+	if err != nil {
+		t.Fatalf("Unexpected error: %#v", err)
+	}
+}
+
 func AbsInt(i int) int {
 	if i < 0 {
 		return -i
@@ -27,6 +33,22 @@ func MinI(a int, b int) int {
 		return b
 	}
 	return a
+}
+
+func RtoI(rn rune) (int, error) {
+	v := int(rn - '0')
+	if v < 0 || v > 9 {
+		return -1, fmt.Errorf("Couldn't rune to integer: %v", rn)
+	}
+	return v, nil
+}
+
+func ItoR(v int) (rune, error) {
+	if v < 0 || v > 9 {
+		return -1, fmt.Errorf("Couldn't integer to rune: %v", v)
+	}
+	rn := rune('0' + v)
+	return rn, nil
 }
 
 func PowInt(x int, y int) int {
@@ -50,10 +72,40 @@ func GCD(a int, b int) int {
 	return a
 }
 
+func All(vals ...bool) bool {
+	for _, v := range vals {
+		if v != true {
+			return false
+		}
+	}
+	return true
+}
+
+func Any(vals ...bool) bool {
+	for _, v := range vals {
+		if v == true {
+			return true
+		}
+	}
+	return false
+}
+
+func MakeFill[T any](v T, l int, c ...int) []T {
+	var slice []T
+	if len(c) == 0 {
+		slice = make([]T, l)
+	} else {
+		slice = make([]T, l, c[0])
+	}
+	for i := range l {
+		slice[i] = v
+	}
+	return slice
+}
+
 func Insert[T any](l []T, i int, v ...T) []T {
 	return append(l[:i], append(v, l[i:]...)...)
 }
-
 
 func MapClone[T comparable, U any](m map[T]U, clone ...func(U) U) (map[T]U) {
 	n := make(map[T]U)
@@ -109,6 +161,53 @@ func (c *Counter[T]) Get(item T) (int) {
 	return count
 }
 
+type Stack[T any] struct {
+	contents []T
+}
+
+func MakeStack[T any](items ...T) *Stack[T] {
+	st := Stack[T]{}
+	st.contents = make([]T, len(items))
+	copy(items, st.contents)
+	return &st
+}
+
+func (st Stack[T]) String() (string) {
+	vs := []string{}
+	for _, v := range st.contents {
+		vs = append(vs, fmt.Sprintf("%+v", v))
+	}
+	return "[" + strings.Join(vs, ", ") + ">"
+}
+
+func (st *Stack[T]) Size() int {
+	return len(st.contents)
+}
+
+func (st *Stack[T]) Push(items ...T) {
+	st.contents = append(st.contents, items...)
+}
+
+func (st *Stack[T]) Pop() (T, error) {
+	if st.Size() == 0 {
+		var null T
+		return null, fmt.Errorf("Stack is empty!")
+	}
+	i := st.contents[st.Size() - 1]
+	st.contents = st.contents[:st.Size() - 1]
+	return i, nil
+}
+
+func (st *Stack[T]) Clone() *Stack[T] {
+	return MakeStack(st.contents...)
+}
+
+func (st *Stack[T]) Slice() *[]T {
+	sl := make([]T, st.Size())
+	copy(sl, st.contents)
+	return &sl
+}
+
 type Set [T comparable] struct {
 	contents map[T]bool
 }
@@ -151,17 +250,21 @@ func (s Set[T]) Iter() (iter.Seq[T]) {
 }
 
 func (s Set[T]) Eq(o Set[T]) (bool) {
-	for k, _ := range s.contents {
+	for k := range s.contents {
 		if !o.Has(k) {
 			return false
 		}
 	}
-	for k, _ := range o.contents {
+	for k := range o.contents {
 		if !s.Has(k) {
 			return false
 		}
 	}
 	return true
+}
+
+func (s *Set[T]) Clear() {
+	s.contents = make(map[T]bool)
 }
 
 func (s *Set[T]) Add(items ...T) {
@@ -171,7 +274,7 @@ func (s *Set[T]) Add(items ...T) {
 }
 
 func (s *Set[T]) Pop() (item T) {
-	for i, _ := range s.contents {
+	for i := range s.contents {
 		item = i
 		break
 	}
@@ -193,7 +296,7 @@ func (s Set[T]) Empty() (bool) {
 }
 
 func (s Set[T]) Items() (items []T) {
-	for k, _ := range s.contents {
+	for k := range s.contents {
 		items = append(items, k)
 	}
 	return
@@ -275,6 +378,10 @@ func (sm *SetMap[T, U]) Add(key T, items ...U) {
 	}
 }
 
+func (sm *SetMap[T, U]) Rem(key T) {
+	delete(sm.contents, key)
+}
+
 func (sm *SetMap[T, U]) Size() int {
 	return len(sm.contents)
 }
@@ -299,7 +406,7 @@ func (sm *SetMap[T, U]) Pop(key T) *Set[U] {
 		s := MakeSet[U]()
 		return &s
 	} else {
-		delete(sm.contents, key)
+		sm.Rem(key)
 	}
 	return &s
 }
@@ -358,8 +465,12 @@ func (p Point) Add(v Vector) Point {
 	return Point{I: p.I + v.Di, J: p.J + v.Dj}
 }
 
-func (p Point) Diff(o Point) (Vector) {
+func (p Point) Diff(o Point) Vector {
 	return Vector{Di: p.I - o.I, Dj: p.J - o.J}
+}
+
+func (p Point) Mul(d int) Point {
+	return Point{I: p.I * d, J: p.J * d}
 }
 
 type Vector struct {
@@ -428,8 +539,12 @@ func MakeSize(w int, h int) (Size, error) {
 	return s, nil
 }
 
-func (s Size) String() (string) {
+func (s Size) String() string {
 	return fmt.Sprintf("[%v, %v]", s.W, s.H)
+}
+
+func (s Size) Area() int {
+	return s.W * s.H
 }
 
 func (s Size) Idx(p Point) (int, error) {
@@ -441,6 +556,18 @@ func (s Size) Idx(p Point) (int, error) {
 
 func (s Size) Out(p Point) bool {
 	return p.I < 0 || p.J < 0 || p.I >= s.H || p.J >= s.W
+}
+
+func (s Size) Iter() (iter.Seq[Point]) {
+	return func(yield func(Point) bool) {
+		for i := range s.H {
+			for j := range s.W {
+				if !yield(MakePoint(i, j)) {
+					return
+				}
+			}
+		}
+	}
 }
 
 type Grid [T any] struct {
@@ -778,10 +905,3 @@ func (dag DAG[T]) Sort(items []T) ([]T, error) {
 	}
 	return nil, fmt.Errorf("Couldn't sort items %+v using dag", items)
 }
-
-func Unexpect(t *testing.T, err error) {
-	if err != nil {
-		t.Fatalf("Unexpected error: %#v", err)
-	}
-}
-
