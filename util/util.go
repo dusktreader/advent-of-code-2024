@@ -63,6 +63,13 @@ func Pow3(x int) int {
 	return int(math.Pow(3, float64(x)))
 }
 
+func DigiCt(i int) int {
+	if i == 0 {
+		return 1
+	}
+	return int(math.Log10(float64(AbsInt(i))) + 1)
+}
+
 func GCD(a int, b int) int {
 	for b != 0 {
 		t := b

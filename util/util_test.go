@@ -27,6 +27,27 @@ func TestCounter(t *testing.T) {
 	}
 }
 
+func TestDigiCt(t *testing.T) {
+	cases := [][]int{
+		{    0, 1},
+		{    1, 1},
+		{    9, 1},
+		{   10, 2},
+		{   99, 2},
+		{10000, 5},
+		{   -1, 1},
+		{  -10, 2},
+	}
+
+	for _, c := range cases {
+		want := c[1]
+		got  := util.DigiCt(c[0])
+		if want != got {
+			t.Errorf("Got wrong digit count for %v: wanted %v, got %v", c[0], want, got)
+		}
+	}
+}
+
 func TestSet(t *testing.T) {
 	items := []int{1, 2, 3}
 	set := util.MakeSet(items...)
