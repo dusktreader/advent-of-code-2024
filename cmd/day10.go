@@ -112,7 +112,7 @@ func (tm *TopoMap) RateTrails() int {
 type TopoMap struct {
 	Size  util.Size
 	Elevs []int
-	DAG   *graph.Digraph[util.Point]
+	DAG   *graph.Graph[util.Point]
 	THs   util.Set[util.Point]
 	Tops  util.Set[util.Point]
 }
@@ -192,7 +192,7 @@ func ParseTopoMap(inputStr string) (tm *TopoMap, err error) {
 	west := util.MakeVector(0, -1)
 	north := util.MakeVector(-1, 0)
 	tm = &TopoMap{
-		DAG:  graph.MakeDigraph[util.Point](),
+		DAG:  graph.MakeGraph[util.Point](true),
 		Size: util.Size{W: 0, H: len(lines)},
 		THs:  util.MakeSet[util.Point](),
 		Tops: util.MakeSet[util.Point](),

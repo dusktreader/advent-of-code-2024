@@ -21,7 +21,8 @@ func TestParseTopoMap(t *testing.T) {
 		8.....8
 		9.....9
 	`
-	want := graph.MakeDigraph(
+	want := graph.MakeGraph(
+		true,
 		ppair{Left: util.MakePoint(0, 3), Right: util.MakePoint(1, 3)},
 		ppair{Left: util.MakePoint(1, 3), Right: util.MakePoint(2, 3)},
 		ppair{Left: util.MakePoint(2, 3), Right: util.MakePoint(3, 3)},

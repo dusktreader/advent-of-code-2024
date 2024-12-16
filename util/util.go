@@ -280,13 +280,18 @@ func (s *Set[T]) Add(items ...T) {
 	}
 }
 
-func (s *Set[T]) Pop() (item T) {
+func (s *Set[T]) First() (item T) {
 	for i := range s.contents {
 		item = i
 		break
 	}
+	return
+}
+
+func (s *Set[T]) Pop() (item T) {
+	item = s.First()
 	s.Rem(item)
-	return item
+	return
 }
 
 func (s *Set[T]) Rem(item T) {
@@ -453,6 +458,10 @@ func MakePair[T any](left T, right T) (p Pair[T]) {
 	return
 }
 
+func (p Pair[T]) Rev() Pair[T] {
+	return MakePair(p.Right, p.Left)
+}
+
 type Point struct {
 	I int
 	J int
@@ -503,12 +512,24 @@ func (v Vector) Mul(m int) Vector {
 	return Vector{Di: v.Di * m, Dj: v.Dj * m}
 }
 
-func (v Vector) Rot() (Vector) {
+func (v Vector) RotCW() (Vector) {
 	if v.Di == 0 {
 		return Vector{Di: v.Dj, Dj: 0}
 	} else {
 		return Vector{Di: 0, Dj: -v.Di}
 	}
+}
+
+func (v Vector) RotCCW() (Vector) {
+	if v.Di == 0 {
+		return Vector{Di: -v.Dj, Dj: 0}
+	} else {
+		return Vector{Di: 0, Dj: v.Di}
+	}
+}
+
+func (v Vector) Flip() (Vector) {
+	return Vector{Di: -v.Di, Dj: -v.Dj}
 }
 
 func (v Vector) String() string {
@@ -531,6 +552,15 @@ func (v Vector) Pretty() rune {
 	} else {
 		return 'v'
 	}
+}
+
+type Ray struct {
+	O Point
+	V Vector
+}
+
+func (r Ray) String() string {
+	return fmt.Sprintf("%v%v", r.O, r.V)
 }
 
 type Size struct {

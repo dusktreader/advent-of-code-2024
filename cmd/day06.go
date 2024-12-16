@@ -173,7 +173,7 @@ func (lm *LabMap) Walk() (bool, error) {
 
 	if lm.Obstr.Has(lm.GuardPos) {
 		lm.GuardPos = lastPos
-		lm.GuardDir = lm.GuardDir.Rot()
+		lm.GuardDir = lm.GuardDir.RotCW()
 	}
 	err := lm.Visit(lm.GuardPos, lm.GuardDir)
 	if err != nil {
