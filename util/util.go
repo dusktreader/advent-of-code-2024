@@ -35,6 +35,13 @@ func MinI(a int, b int) int {
 	return a
 }
 
+func MaxI(a int, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 func RtoI(rn rune) (int, error) {
 	v := int(rn - '0')
 	if v < 0 || v > 9 {
@@ -512,6 +519,10 @@ func (v Vector) Mul(m int) Vector {
 	return Vector{Di: v.Di * m, Dj: v.Dj * m}
 }
 
+func (v Vector) Cross(u Vector) int {
+	return v.Dj * u.Di - v.Di * u.Dj
+}
+
 func (v Vector) RotCW() (Vector) {
 	if v.Di == 0 {
 		return Vector{Di: v.Dj, Dj: 0}
@@ -561,6 +572,24 @@ type Ray struct {
 
 func (r Ray) String() string {
 	return fmt.Sprintf("%v%v", r.O, r.V)
+}
+
+func (r Ray) Ix(o Ray) (Point, error) {
+	ix := MakePoint(0, 0)
+	det := r.V.Cross(o.V)
+	if det == 0 {
+		return ix, fmt.Errorf("Rays are parallel or coincident")
+	}
+
+	v := o.O.Diff(r.O)
+
+	t := v.Cross(o.V) / det
+	u := v.Cross(r.V) / det
+
+	if t < 0 || u < 0 {
+		return ix, fmt.Errorf("Rays do not intersect")
+	}
+	return r.O.Add(r.V.Mul(t)), nil
 }
 
 type Size struct {
