@@ -175,6 +175,16 @@ func (c *Counter[T]) Get(item T) (int) {
 	return count
 }
 
+func (c *Counter[T]) Iter() (iter.Seq2[T, int]) {
+	return func(yield func(T, int) bool) {
+		for k, v := range c.contents {
+			if !yield(k, v) {
+				return
+			}
+		}
+	}
+}
+
 type Stack[T any] struct {
 	contents []T
 }
@@ -219,6 +229,53 @@ func (st *Stack[T]) Clone() *Stack[T] {
 func (st *Stack[T]) Slice() *[]T {
 	sl := make([]T, st.Size())
 	copy(sl, st.contents)
+	return &sl
+}
+
+type Queue[T any] struct {
+	contents []T
+}
+
+func MakeQueue[T any](items ...T) *Queue[T] {
+	q := Queue[T]{}
+	q.contents = make([]T, len(items))
+	copy(items, q.contents)
+	return &q
+}
+
+func (q Queue[T]) String() (string) {
+	vs := []string{}
+	for _, v := range q.contents {
+		vs = append(vs, fmt.Sprintf("%+v", v))
+	}
+	return "<" + strings.Join(vs, ", ") + "<"
+}
+
+func (q *Queue[T]) Size() int {
+	return len(q.contents)
+}
+
+func (q *Queue[T]) Push(items ...T) {
+	q.contents = append(q.contents, items...)
+}
+
+func (q *Queue[T]) Pop() (T, error) {
+	if q.Size() == 0 {
+		var null T
+		return null, fmt.Errorf("Queue is empty!")
+	}
+	i := q.contents[0]
+	q.contents = q.contents[1:]
+	return i, nil
+}
+
+func (q *Queue[T]) Clone() *Queue[T] {
+	return MakeQueue(q.contents...)
+}
+
+func (q *Queue[T]) Slice() *[]T {
+	sl := make([]T, q.Size())
+	copy(sl, q.contents)
 	return &sl
 }
 
@@ -501,6 +558,11 @@ type Vector struct {
 	Dj int
 }
 
+var NORTH = Vector{Di: -1, Dj:  0}
+var EAST  = Vector{Di:  0, Dj:  1}
+var SOUTH = Vector{Di:  1, Dj:  0}
+var WEST  = Vector{Di:  0, Dj: -1}
+
 func MakeVector(di int, dj int) (v Vector) {
 	v.Di = di
 	v.Dj = dj
@@ -609,6 +671,14 @@ func (s Size) String() string {
 	return fmt.Sprintf("[%v, %v]", s.W, s.H)
 }
 
+func (s Size) Mul(m int) Size {
+	return Size{W: s.W * m, H: s.H * m}
+}
+
+func (s Size) Div(d int) Size {
+	return Size{W: s.W / d, H: s.H / d}
+}
+
 func (s Size) Area() int {
 	return s.W * s.H
 }
@@ -634,6 +704,23 @@ func (s Size) Iter() (iter.Seq[Point]) {
 			}
 		}
 	}
+}
+
+type Rect struct {
+	Tl Point
+	Sz      Size
+}
+
+func MakeRect(tl Point, sz Size) (Rect, error) {
+	r := Rect{Tl: tl, Sz: sz}
+	if sz.W < 0 || sz.H < 0 {
+		return r, fmt.Errorf("Invalid size %s", sz)
+	}
+	return r, nil
+}
+
+func (r Rect) Has(p Point) bool {
+	return p.I >= r.Tl.I && p.I < r.Tl.I + r.Sz.H && p.J >= r.Tl.J && p.J < r.Tl.J + r.Sz.W
 }
 
 type Grid [T any] struct {
