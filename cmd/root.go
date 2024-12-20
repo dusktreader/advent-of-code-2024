@@ -71,7 +71,8 @@ func MaybeDie(err error) {
 	}
 }
 
-func Die(msg string) {
+func Die(msg string, flags ...interface{}) {
+	msg = fmt.Sprintf(msg, flags...)
 	fmt.Fprintln(os.Stderr, "Aborting:", msg)
 	os.Exit(1)
 }
