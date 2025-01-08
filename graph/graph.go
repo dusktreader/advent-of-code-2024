@@ -10,27 +10,40 @@ import (
 
 // Need to add tests for this!!
 
+type Edge [T any] struct {
+	From T
+	To   T
+	Wt   int
+}
+
+func (e Edge[T]) Rev() Edge[T] {
+	return Edge[T]{From: e.To, To: e.From, Wt: e.Wt}
+}
+
+func (e Edge[T]) String() string {
+	return fmt.Sprintf("%v -> %v", e.From, e.To)
+}
+
 type Graph [T comparable] struct {
 	directed    bool
 	nodes       util.Set[T]
 	sources     util.Set[T]
 	sinks       util.Set[T]
 	sortedNodes []T
-	oEdges      util.SetMap[T, T]
-	iEdges      util.SetMap[T, T]
+	edges       util.Set[Edge[T]]
+	nodeEdgeMap util.SetMap[T, Edge[T]]
 }
 
 func MakeGraph[T comparable](directed bool, pairs ...util.Pair[T]) *Graph[T] {
 	g := Graph[T]{
 		directed: directed,
-		oEdges:   util.MakeSetMap[T, T](),
-		iEdges:   util.MakeSetMap[T, T](),
+		edges:    util.MakeSet[Edge[T]](),
+		nodeEdgeMap: util.MakeSetMap[T, Edge[T]](),
 		nodes:    util.MakeSet[T](),
 		sources:  util.MakeSet[T](),
 		sinks:    util.MakeSet[T](),
 	}
 	for _, p := range pairs {
-		slog.Debug("Adding edge:", "p", p)
 		g.AddEdge(p.Left, p.Right)
 	}
 	return &g
@@ -41,28 +54,25 @@ func (g *Graph[T]) Eq(og *Graph[T]) bool {
 		return false
 	}
 
-	if g.directed {
-		return util.All(
-			g.nodes.Eq(og.nodes),
-			g.Edges().Eq(og.Edges()),
-		)
-	}
-
 	if !g.nodes.Eq(og.nodes) {
 		return false
 	}
 
-	gEdges := g.Edges()
-	oEdges := og.Edges()
+	if g.directed {
+		return g.edges.Eq(og.edges)
+	}
+
+	gEdges := g.edges.Clone()
+	oEdges := og.edges.Clone()
 
 	for !gEdges.Empty() {
-		p := gEdges.Pop()
-		rp := p.Rev()
-		if !oEdges.Has(p) && !oEdges.Has(rp) {
+		e := gEdges.Pop()
+		re := e.Rev()
+		if !oEdges.Has(e) && !oEdges.Has(re) {
 			return false
 		}
-		oEdges.Rem(p)
-		oEdges.Rem(rp)
+		oEdges.Rem(e)
+		oEdges.Rem(re)
 	}
 
 	if !oEdges.Empty() {
@@ -73,8 +83,8 @@ func (g *Graph[T]) Eq(og *Graph[T]) bool {
 }
 
 func (g *Graph[T]) Clear() {
-	g.oEdges.Clear()
-	g.iEdges.Clear()
+	g.edges.Clear()
+	g.nodeEdgeMap.Clear()
 	g.nodes.Clear()
 	g.sources.Clear()
 	g.sinks.Clear()
@@ -82,14 +92,18 @@ func (g *Graph[T]) Clear() {
 
 func (g *Graph[T]) Clone() *Graph[T] {
 	ng := Graph[T]{
-		directed: g.directed,
-		nodes:    g.nodes.Clone(),
-		sources:  g.sources.Clone(),
-		sinks:    g.sinks.Clone(),
-		oEdges:   g.oEdges.Clone(),
-		iEdges:   g.iEdges.Clone(),
+		directed:    g.directed,
+		nodes:       g.nodes.Clone(),
+		sources:     g.sources.Clone(),
+		sinks:       g.sinks.Clone(),
+		edges:       g.edges.Clone(),
+		nodeEdgeMap: g.nodeEdgeMap.Clone(),
 	}
 	return &ng
+}
+
+func (g *Graph[T]) Has(n T) bool {
+	return g.nodes.Has(n)
 }
 
 func (g *Graph[T]) Add(n T) {
@@ -108,11 +122,11 @@ func (g Graph[T]) String() (string) {
 	for n := range g.nodes.Iter() {
 		nodes = append(nodes, fmt.Sprintf("%v", n))
 	}
-	edges := []string{}
-	for l, r := range g.oEdges.Iter() {
-		edges = append(edges, fmt.Sprintf("%v%v%v", l, cx, r))
+	edgeStrs := []string{}
+	for e := range g.edges.Iter() {
+		edgeStrs = append(edgeStrs, fmt.Sprintf("%v%v%v", e.From, cx, e.To))
 	}
-	return "(" + strings.Join(nodes, ", ") + "):{" + strings.Join(edges, ", ") + "}"
+	return "(" + strings.Join(nodes, ", ") + "):{" + strings.Join(edgeStrs, ", ") + "}"
 }
 
 func (g *Graph[T]) Dot() (string) {
@@ -123,12 +137,11 @@ func (g *Graph[T]) Dot() (string) {
 		cx = "->"
 	}
 
-	edges := g.Edges()
-	lines := make([]string, edges.Size() + 2)
+	lines := make([]string, g.edges.Size() + 2)
 	lines[0] = fmt.Sprintf("%s g {", t)
 
-	for i, edge := range edges.Items() {
-		lines[i + 1] = fmt.Sprintf("    %v%v%v;", edge.Left, cx, edge.Right)
+	for i, edge := range g.edges.Items() {
+		lines[i + 1] = fmt.Sprintf("    %v%v%v;", edge.From, cx, edge.To)
 	}
 	lines[len(lines) - 1] = "}"
 	return strings.Join(lines, "\n")
@@ -140,73 +153,73 @@ func (g *Graph[T]) Mermaid() (string) {
 		cx = "-->"
 	}
 
-	edges := g.Edges()
-	lines := make([]string, edges.Size() + 1)
+	lines := make([]string, g.edges.Size() + 1)
 	lines[0] = "graph TD;"
 
-	for i, edge := range edges.Items() {
-		lines[i + 1] = fmt.Sprintf("    %v%v%v;", edge.Left, cx, edge.Right)
+	for i, edge := range g.edges.Items() {
+		lines[i + 1] = fmt.Sprintf("    %v%v%v;", edge.From, cx, edge.To)
 	}
 	return strings.Join(lines, "\n")
 }
 
 func (g *Graph[T]) Rem(n T) {
+	edges := g.nodeEdgeMap.Get(n)
+	for edge := range edges.Iter() {
+		g.RemEdge(edge.From, edge.To)
+	}
 	g.nodes.Rem(n)
-	g.oEdges.Rem(n)
-	for _, edges := range g.oEdges.Iter() {
-		edges.Rem(n)
-	}
-	g.iEdges.Rem(n)
-	for _, edges := range g.iEdges.Iter() {
-		edges.Rem(n)
-	}
 	g.sortedNodes = nil
 	g.sources.Clear()
 	g.sinks.Clear()
 }
 
-func (g *Graph[T]) AddEdge(left T, right T) {
-	g.nodes.Add(left)
-	g.nodes.Add(right)
-	g.oEdges.Add(left, right)
-	g.iEdges.Add(right, left)
+func (g *Graph[T]) AddEdge(from T, to T, weight ...int) {
+	var wt int
+	if len(weight) == 0 {
+		wt = 1
+	} else {
+		wt = weight[0]
+	}
+
+	edge := Edge[T]{From: from, To: to, Wt: wt}
+
+	g.nodes.Add(from)
+	g.nodes.Add(to)
+	g.edges.Add(edge)
+	g.nodeEdgeMap.Add(from, edge)
+	g.nodeEdgeMap.Add(to, edge)
 	g.sortedNodes = nil
 	g.sources.Clear()
 	g.sinks.Clear()
-
-	if g.directed == false {
-		g.oEdges.Add(right, left)
-		g.iEdges.Add(left, right)
-	}
-
 }
 
 func (g *Graph[T]) RemEdge(left T, right T) {
-	oEdges := g.oEdges.Get(left)
-	oEdges.Rem(right)
-	if oEdges.Empty() {
-		g.oEdges.Rem(left)
-	}
-
-	iEdges := g.iEdges.Get(right)
-	iEdges.Rem(left)
-	if iEdges.Empty() {
-		g.iEdges.Rem(right)
-	}
-
-	if g.directed == false {
-		oEdges := g.oEdges.Get(right)
-		oEdges.Rem(left)
-		if oEdges.Empty() {
-			g.oEdges.Rem(right)
-		}
-
-		iEdges := g.iEdges.Get(left)
-		iEdges.Rem(right)
-		if iEdges.Empty() {
-			g.iEdges.Rem(left)
+	leftEdges := g.nodeEdgeMap.Get(left)
+	for edge := range leftEdges.Iter() {
+		if edge.From == left && edge.To == right {
+			g.edges.Rem(edge)
+			leftEdges.Rem(edge)
+			break
+		} else if !g.directed && edge.To == left && edge.From == right {
+			g.edges.Rem(edge)
+			leftEdges.Rem(edge)
+			break
 		}
 	}
+
+	rightEdges := g.nodeEdgeMap.Get(right)
+	for edge := range rightEdges.Iter() {
+		if edge.From == left && edge.To == right {
+			g.edges.Rem(edge)
+			rightEdges.Rem(edge)
+			break
+		} else if !g.directed && edge.To == left && edge.From == right {
+			g.edges.Rem(edge)
+			rightEdges.Rem(edge)
+			break
+		}
+	}
+
 	g.sortedNodes = nil
 }
 
@@ -214,12 +227,24 @@ func (g *Graph[T]) Nodes() (util.Set[T]) {
 	return g.nodes.Clone()
 }
 
+func (g *Graph[T]) Edge(from T, to T) (Edge[T], bool) {
+	for edge := range g.nodeEdgeMap.Get(from).Iter() {
+		if edge.From == from && edge.To == to {
+			return edge, true
+		}
+
+		if !g.directed && edge.From == to && edge.To == from {
+			return edge, true
+		}
+	}
+	return Edge[T]{}, false
+}
+
+// This is dumb. It should return a set of edges, not a set of pairs
 func (g *Graph[T]) Edges() (util.Set[util.Pair[T]]) {
 	pairs := util.MakeSet[util.Pair[T]]()
-	for left, edges := range g.oEdges.Iter() {
-		for right := range edges.Iter() {
-			pairs.Add(util.MakePair(left, right))
-		}
+	for edge := range g.edges.Iter() {
+		pairs.Add(util.MakePair(edge.From, edge.To))
 	}
 
 	if g.directed == true {
@@ -239,17 +264,33 @@ func (g *Graph[T]) Edges() (util.Set[util.Pair[T]]) {
 }
 
 func (g *Graph[T]) OutN(left T) util.Set[T] {
-	return g.oEdges.Get(left).Clone()
+	nodes := util.MakeSet[T]()
+	for edge := range g.nodeEdgeMap.Get(left).Iter() {
+		if edge.From == left {
+			nodes.Add(edge.To)
+		}
+	}
+	return nodes
 }
 
 func (g *Graph[T]) InN(right T) util.Set[T] {
-	return g.iEdges.Get(right).Clone()
+	nodes := util.MakeSet[T]()
+	for edge := range g.nodeEdgeMap.Get(right).Iter() {
+		if edge.To == right {
+			nodes.Add(edge.From)
+		}
+	}
+	return nodes
 }
 
 func (g *Graph[T]) Nbors(n T) util.Set[T] {
-	o := g.oEdges.Get(n)
-	i := g.iEdges.Get(n)
-	return o.Un(*i)
+	nodes := util.MakeSet[T]()
+	for edges := range g.nodeEdgeMap.Get(n).Iter() {
+		nodes.Add(edges.From)
+		nodes.Add(edges.To)
+	}
+	nodes.Rem(n)
+	return nodes
 }
 
 func (g *Graph[T]) CnxComp() []Graph[T] {

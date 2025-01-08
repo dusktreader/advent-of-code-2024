@@ -38,6 +38,12 @@ func rootMain(cmd *cobra.Command, args []string) {
 	_ = cmd.Help()
 }
 
+func getViz(cmd *cobra.Command, args []string) int {
+	viz, err := cmd.Flags().GetCount("visualize")
+	MaybeDie(err)
+	return viz
+}
+
 func loadInput(cmd *cobra.Command, args []string) (inputStr string, err error) {
 	inputFile, err := cmd.Flags().GetString("input-file")
 	if err != nil {

@@ -48,12 +48,6 @@ func d15Main(cmd *cobra.Command, args []string){
 	_ = cmd.Help()
 }
 
-func getViz(cmd *cobra.Command, args []string) int {
-	viz, err := cmd.Flags().GetCount("visualize")
-	MaybeDie(err)
-	return viz
-}
-
 func getStretch(cmd *cobra.Command, args []string) (int, int) {
 	wf, err := cmd.Flags().GetInt("stretch-horizontal")
 	MaybeDie(err)

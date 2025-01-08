@@ -222,6 +222,14 @@ func (st *Stack[T]) Pop() (T, error) {
 	return i, nil
 }
 
+func (st *Stack[T]) Peek() (T, error) {
+	if st.Size() == 0 {
+		var null T
+		return null, fmt.Errorf("Stack is empty!")
+	}
+	return st.contents[st.Size() - 1], nil
+}
+
 func (st *Stack[T]) Clone() *Stack[T] {
 	return MakeStack(st.contents...)
 }
@@ -230,6 +238,16 @@ func (st *Stack[T]) Slice() *[]T {
 	sl := make([]T, st.Size())
 	copy(sl, st.contents)
 	return &sl
+}
+
+func (st *Stack[T]) Iter() (iter.Seq[T]) {
+	return func(yield func(T) bool) {
+		for i := len(st.contents) - 1; i >= 0; i-- {
+			if !yield(st.contents[i]) {
+				return
+			}
+		}
+	}
 }
 
 type Queue[T any] struct {
@@ -389,6 +407,10 @@ func (s Set[T]) Ix(o Set[T]) (Set[T]) {
 	return n
 }
 
+func (s Set[T]) Absorb(o Set[T]) {
+	s.Add(o.Items()...)
+}
+
 func (s Set[T]) Un(o Set[T]) (Set[T]) {
 	n := s.Clone()
 	n.Add(o.Items()...)
@@ -455,8 +477,16 @@ func (sm *SetMap[T, U]) Add(key T, items ...U) {
 	}
 }
 
+// Rename to RemKey
 func (sm *SetMap[T, U]) Rem(key T) {
 	delete(sm.contents, key)
+}
+
+func (sm *SetMap[T, U]) RemItem(key T, item U) {
+	s, ok := sm.contents[key]
+	if ok {
+		s.Rem(item)
+	}
 }
 
 func (sm *SetMap[T, U]) Size() int {

@@ -9,6 +9,105 @@ import (
 	"github.com/dusktreader/advent-of-code-2024/util"
 )
 
+func TestOutN(t *testing.T) {
+	g := graph.MakeGraph(
+		true,
+		util.MakePair(1, 2),
+		util.MakePair(1, 3),
+		util.MakePair(1, 5),
+		util.MakePair(4, 5),
+		util.MakePair(5, 2),
+		util.MakePair(2, 3),
+		util.MakePair(5, 6),
+	)
+
+	want := util.MakeSet(2, 3, 5)
+	got  := g.OutN(1)
+	if !want.Eq(got) {
+		t.Errorf("Wrong out-neighbors: wanted %v, got %v", want, got)
+	}
+
+	want = util.MakeSet[int]()
+	got  = g.OutN(3)
+	if !want.Eq(got) {
+		t.Errorf("Wrong out-neighbors: wanted %v, got %v", want, got)
+	}
+
+	want = util.MakeSet(2, 6)
+	got  = g.OutN(5)
+	if !want.Eq(got) {
+		t.Errorf("Wrong out-neighbors: wanted %v, got %v", want, got)
+	}
+}
+
+func TestInN(t *testing.T) {
+	g := graph.MakeGraph(
+		true,
+		util.MakePair(1, 2),
+		util.MakePair(1, 3),
+		util.MakePair(1, 5),
+		util.MakePair(4, 5),
+		util.MakePair(5, 2),
+		util.MakePair(2, 3),
+		util.MakePair(5, 6),
+	)
+
+	want := util.MakeSet[int]()
+	got  := g.InN(1)
+	if !want.Eq(got) {
+		t.Errorf("Wrong in-neighbors: wanted %v, got %v", want, got)
+	}
+
+	want = util.MakeSet(1, 2)
+	got  = g.InN(3)
+	if !want.Eq(got) {
+		t.Errorf("Wrong in-neighbors: wanted %v, got %v", want, got)
+	}
+
+	want = util.MakeSet(1, 4)
+	got  = g.InN(5)
+	if !want.Eq(got) {
+		t.Errorf("Wrong in-neighbors: wanted %v, got %v", want, got)
+	}
+}
+
+func TestNbors(t *testing.T) {
+	g := graph.MakeGraph(
+		true,
+		util.MakePair(1, 2),
+		util.MakePair(1, 3),
+		util.MakePair(1, 5),
+		util.MakePair(4, 5),
+		util.MakePair(5, 2),
+		util.MakePair(2, 3),
+		util.MakePair(5, 6),
+	)
+
+	want := util.MakeSet(2, 3, 5)
+	got  := g.Nbors(1)
+	if !want.Eq(got) {
+		t.Errorf("Wrong neighbors: wanted %v, got %v", want, got)
+	}
+
+	want = util.MakeSet(1, 2)
+	got  = g.Nbors(3)
+	if !want.Eq(got) {
+		t.Errorf("Wrong neighbors: wanted %v, got %v", want, got)
+	}
+
+	want = util.MakeSet(1, 4, 2, 6)
+	got  = g.Nbors(5)
+	if !want.Eq(got) {
+		t.Errorf("Wrong neighbors: wanted %v, got %v", want, got)
+	}
+
+	want = util.MakeSet(5)
+	got  = g.Nbors(6)
+	if !want.Eq(got) {
+		t.Errorf("Wrong neighbors: wanted %v, got %v", want, got)
+	}
+}
+
 func TestEdgesDirected(t *testing.T) {
 	g := graph.MakeGraph(
 		true,
@@ -147,6 +246,71 @@ func TestEqUndirected(t *testing.T) {
 
 	if !g.Eq(og) {
 		t.Fatalf("Didn't match: %v != %v", g, og)
+	}
+}
+
+func TestSourcesDirected(t *testing.T) {
+	g := graph.MakeGraph(
+		true,
+		util.MakePair(1, 2),
+		util.MakePair(1, 3),
+		util.MakePair(1, 5),
+		util.MakePair(4, 5),
+		util.MakePair(5, 2),
+		util.MakePair(2, 3),
+		util.MakePair(5, 6),
+	)
+
+	want := util.MakeSet(1, 4)
+	got  := g.Sources()
+	if !want.Eq(got) {
+		t.Errorf("Wrong sources: wanted %v, got %v", want, got)
+	}
+}
+
+func TestSinksDirected(t *testing.T) {
+	g := graph.MakeGraph(
+		true,
+		util.MakePair(1, 2),
+		util.MakePair(1, 3),
+		util.MakePair(1, 5),
+		util.MakePair(4, 5),
+		util.MakePair(5, 2),
+		util.MakePair(2, 3),
+		util.MakePair(5, 6),
+	)
+
+	want := util.MakeSet(3, 6)
+	got  := g.Sinks()
+	if !want.Eq(got) {
+		t.Errorf("Wrong sinks: wanted %v, got %v", want, got)
+	}
+}
+
+func TestHasCyle(t *testing.T) {
+	g := graph.MakeGraph(
+		true,
+		util.MakePair(1, 2),
+		util.MakePair(1, 3),
+		util.MakePair(1, 5),
+		util.MakePair(4, 5),
+		util.MakePair(5, 2),
+		util.MakePair(2, 3),
+		util.MakePair(5, 6),
+	)
+
+	want := false
+	got  := g.HasCycle()
+	if want != got {
+		t.Errorf("Wrong has-cycle: wanted %v, got %v", want, got)
+	}
+
+	g.AddEdge(6, 4)
+
+	want = true
+	got  = g.HasCycle()
+	if want != got {
+		t.Errorf("Wrong has-cycle: wanted %v, got %v", want, got)
 	}
 }
 
