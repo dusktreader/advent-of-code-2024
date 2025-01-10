@@ -3,8 +3,11 @@ package graph
 import (
 	"fmt"
 	"log/slog"
+	"math"
+	"net"
 	"strings"
 
+	"github.com/dusktreader/advent-of-code-2024/heap"
 	"github.com/dusktreader/advent-of-code-2024/util"
 )
 
@@ -47,6 +50,10 @@ func MakeGraph[T comparable](directed bool, pairs ...util.Pair[T]) *Graph[T] {
 		g.AddEdge(p.Left, p.Right)
 	}
 	return &g
+}
+
+func MakeDigraph[T comparable](pairs ...util.Pair[T]) *Graph[T] {
+	return MakeGraph[T](true, pairs...)
 }
 
 func (g *Graph[T]) Eq(og *Graph[T]) bool {
@@ -261,6 +268,16 @@ func (g *Graph[T]) Edges() (util.Set[util.Pair[T]]) {
 		pruned.Add(p)
 	}
 	return pruned
+}
+
+func (g *Graph[T]) OutE(left T) util.Set[Edge[T]] {
+	edges := util.MakeSet[Edge[T]]()
+	for edge := range g.nodeEdgeMap.Get(left).Iter() {
+		if edge.From == left {
+			edges.Add(edge)
+		}
+	}
+	return edges
 }
 
 func (g *Graph[T]) OutN(left T) util.Set[T] {
@@ -487,8 +504,8 @@ func (g *Graph[T]) GetTopo() ([]T, error) {
 	return g.sortedNodes, nil
 }
 
-func (dg *Graph[T]) IsSorted(items []T) (bool, error) {
-	sorted, err := dg.GetTopo()
+func (g *Graph[T]) IsSorted(items []T) (bool, error) {
+	sorted, err := g.GetTopo()
 	if err != nil {
 		return false, util.ReErr(err, "Cannot sort using this Digraph")
 	}
@@ -505,11 +522,11 @@ func (dg *Graph[T]) IsSorted(items []T) (bool, error) {
  	return false, nil
 }
 
-func (dg *Graph[T]) Sort(items []T) ([]T, error) {
+func (g *Graph[T]) Sort(items []T) ([]T, error) {
 	sorted := make([]T, len(items))
 	i := 0
 	itemSet  := util.MakeSet(items...)
-	sortedItems, err := dg.GetTopo()
+	sortedItems, err := g.GetTopo()
 	if err != nil {
 		return nil, util.ReErr(err, "Couldn't sort items")
 	}
@@ -524,4 +541,47 @@ func (dg *Graph[T]) Sort(items []T) ([]T, error) {
 		}
 	}
 	return nil, fmt.Errorf("Couldn't sort items %+v using digraph", items)
+}
+
+func (g *Graph[T]) ShortestPaths(a T, b T) ([][]T, error) {
+	pq := heap.MakeMinHeap[T]()
+	pg := MakeDigraph[T]()
+
+	for n := range g.nodes.Iter() {
+		pq.Insert(math.MaxInt, n)
+	}
+	pq.ChangeWeight(0, a)
+
+	for !pq.Empty() {
+		weight, node, err := pq.Extract()
+		if err != nil {
+			return nil, util.ReErr(err, "Couldn't extract from heap!")
+		}
+		for nbor := range g.Nbors(node).Iter() {
+			if !pq.Has(nbor) {
+				continue
+			}
+			newWeight := weight + g.Edge(node, nbor).Wt
+			if newWeight < pq.Weight(nbor) {
+				pq.ChangeWeight(newWeight, nbor)
+
+				if pg.Has(nbor) {
+					prevs := pg.OutN(nbor)
+					if prevs.Size() > 0 {
+						first := prevs.First()
+						edge := pg.Edge(nbor, first)
+						if edge.Wt > newWeight {
+							pg.RemEdge(nbor, first)
+							pg.AddEdge(node, nbor, newWeight)
+						}
+						pw := pg.edge
+					}
+				}
+
+				if pg.OutN(nbor)
+				pg.AddEdge(nbor, node)
+			}
+		}}
+
+	}
 }

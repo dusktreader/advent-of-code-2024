@@ -52,6 +52,10 @@ func (h *Heap[T]) Size() int {
 	return len(h.contents)
 }
 
+func (h *Heap[T]) Empty() bool {
+	return len(h.contents) == 0
+}
+
 func (h *Heap[T]) Dump() ([]int, []T) {
 	weights := make([]int, len(h.contents))
 	values := make([]T, len(h.contents))
